@@ -27,6 +27,7 @@ export const TaskTool = Tool.define("task", async () => {
       subagent_type: z.string().describe("The type of specialized agent to use for this task"),
       session_id: z.string().describe("Existing Task session to continue").optional(),
       command: z.string().describe("The command that triggered this task").optional(),
+      run_in_background: z.boolean().describe("Run the task in background without blocking (default: true). Set to false to wait for completion.").optional(),
     }),
     async execute(params, ctx) {
       const config = await Config.get()
@@ -120,6 +121,46 @@ export const TaskTool = Tool.define("task", async () => {
       ctx.abort.addEventListener("abort", cancel)
       using _ = defer(() => ctx.abort.removeEventListener("abort", cancel))
       const promptParts = await SessionPrompt.resolvePromptParts(params.prompt)
+
+      // Background execution by default (unless explicitly set to false)
+      const runInBackground = params.run_in_background !== false
+      if (runInBackground) {
+        // Start the task without awaiting
+        SessionPrompt.prompt({
+          messageID,
+          sessionID: session.id,
+          model: {
+            modelID: model.modelID,
+            providerID: model.providerID,
+          },
+          agent: agent.name,
+          tools: {
+            todowrite: false,
+            todoread: false,
+            task: false,
+            ...Object.fromEntries((config.experimental?.primary_tools ?? []).map((t) => [t, false])),
+          },
+          parts: promptParts,
+        }).finally(() => {
+          unsub()
+        })
+
+        return {
+          title: `${params.description} (background)`,
+          metadata: {
+            summary: [] as { id: string; tool: string; state: { status: string; title?: string } }[],
+            sessionId: session.id,
+          },
+          output: [
+            `Task "${params.description}" started in background.`,
+            "",
+            "<task_metadata>",
+            `session_id: ${session.id}`,
+            `status: running`,
+            "</task_metadata>",
+          ].join("\n"),
+        }
+      }
 
       const result = await SessionPrompt.prompt({
         messageID,
