@@ -793,7 +793,11 @@ export namespace SessionPrompt {
   }
 
   async function createUserMessage(input: PromptInput) {
-    const agent = await Agent.get(input.agent ?? (await Agent.defaultAgent()))
+    const agentName = input.agent ?? (await Agent.defaultAgent())
+    const agent = await Agent.get(agentName)
+    if (!agent) {
+      throw new Error(`Agent "${agentName}" not found`)
+    }
     const info: MessageV2.Info = {
       id: input.messageID ?? Identifier.ascending("message"),
       role: "user",
