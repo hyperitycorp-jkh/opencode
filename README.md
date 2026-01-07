@@ -1,3 +1,34 @@
+> **Note**: This is a fork of [sst/opencode](https://github.com/sst/opencode) maintained by [@hyperitycorp-jkh](https://github.com/hyperitycorp-jkh) for custom patches and enhancements.
+
+---
+
+## Fork Maintenance
+
+### Upstream Sync
+```bash
+git fetch upstream
+git merge upstream/dev
+# Resolve conflicts if any, then push
+git push origin dev
+```
+
+### Build & Use Local Version
+```bash
+# Build
+bun install
+bun run --cwd packages/opencode build
+
+# Symlink to use locally (macOS ARM)
+ln -sf $(pwd)/packages/opencode/dist/opencode-darwin-arm64/bin/opencode ~/.opencode/bin/opencode
+```
+
+### Patch Workflow
+1. Make changes
+2. `bun run --cwd packages/opencode build`
+3. Ready to use (symlinked)
+
+---
+
 <p align="center">
   <a href="https://opencode.ai">
     <picture>

@@ -25,7 +25,13 @@ export function Sidebar(props: { sessionID: string }) {
     diff: true,
     todo: true,
     lsp: true,
+    background: true,
   })
+
+  // Get child sessions (background tasks) for this session
+  const childSessions = createMemo(() =>
+    sync.data.session.filter((s) => s.parentID === props.sessionID).toSorted((a, b) => b.time.updated - a.time.updated)
+  )
 
   // Sort MCP servers alphabetically for consistent display order
   const mcpEntries = createMemo(() => Object.entries(sync.data.mcp).sort(([a], [b]) => a.localeCompare(b)))
@@ -216,6 +222,64 @@ export function Sidebar(props: { sessionID: string }) {
                 </box>
                 <Show when={todo().length <= 2 || expanded.todo}>
                   <For each={todo()}>{(todo) => <TodoItem status={todo.status} content={todo.content} />}</For>
+                </Show>
+              </box>
+            </Show>
+            <Show when={childSessions().length > 0}>
+              <box>
+                <box
+                  flexDirection="row"
+                  gap={1}
+                  onMouseDown={() => childSessions().length > 2 && setExpanded("background", !expanded.background)}
+                >
+                  <Show when={childSessions().length > 2}>
+                    <text fg={theme.text}>{expanded.background ? "▼" : "▶"}</text>
+                  </Show>
+                  <text fg={theme.text}>
+                    <b>Background Tasks</b>
+                  </text>
+                </box>
+                <Show when={childSessions().length <= 2 || expanded.background}>
+                  <For each={childSessions()}>
+                    {(child) => {
+                      const childStatus = createMemo(() => sync.session.status(child.id))
+                      const statusColor = createMemo(() => {
+                        const s = childStatus()
+                        if (s === "working") return theme.warning
+                        if (s === "idle") return theme.success
+                        if (s === "compacting") return theme.textMuted
+                        return theme.textMuted
+                      })
+                      const statusText = createMemo(() => {
+                        const s = childStatus()
+                        if (s === "working") return "Running"
+                        if (s === "idle") return "Done"
+                        if (s === "compacting") return "Compacting"
+                        return s
+                      })
+                      // Extract agent name from title if available (format: "Child session - ...")
+                      const displayTitle = createMemo(() => {
+                        const title = child.title
+                        if (title.startsWith("Child session - ")) {
+                          return title.substring("Child session - ".length).slice(0, 25)
+                        }
+                        return title.slice(0, 25)
+                      })
+                      return (
+                        <box flexDirection="row" gap={1}>
+                          <text flexShrink={0} fg={statusColor()}>
+                            {childStatus() === "working" ? "◌" : "•"}
+                          </text>
+                          <text fg={theme.text} wrapMode="none">
+                            {displayTitle()}{" "}
+                            <span style={{ fg: theme.textMuted }}>
+                              <i>{statusText()}</i>
+                            </span>
+                          </text>
+                        </box>
+                      )
+                    }}
+                  </For>
                 </Show>
               </box>
             </Show>
